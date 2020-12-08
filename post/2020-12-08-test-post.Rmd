@@ -1,0 +1,23 @@
+---
+title: Test Post
+author: ''
+date: '2020-12-08'
+slug: test-post
+categories: []
+tags: []
+description: ''
+---
+#Heading of my Post
+content of my post
+##subheading of my post
+more content of my post
+```{r}
+quakes<-quakes
+```
+
+```{python}
+import re
+match=re.match(r"\d+","SDS348")
+r.quakes.mag.mean()
+```
+

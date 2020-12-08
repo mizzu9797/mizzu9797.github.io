@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Mizzu Cho" />
+    
+    <link rel="shortcut icon" type="image/x-icon" href="../../img/favicon.ico">
+    <title>Project 2: Modeling, Testing, and Predicting</title>
+    <meta name="generator" content="Hugo 0.79.0" />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" />
+    <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:200,400,200bold,400old" />
+    
+    <!--[if lt IE 9]>
+			<script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+			<script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+		<![endif]-->
+
+    
+  </head>
+
+  <body>
+    <div id="wrap">
+      
+      <nav class="navbar navbar-default">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="../../"><i class="fa fa-home"></i></a>
+      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <div class="navbar-collapse collapse" id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+      
+        
+        <li><a href="../../post/">BLOG</a></li>
+        
+        <li><a href="../../projects/">PROJECTS</a></li>
+        
+        <li><a href="../../resume/">RESUME</a></li>
+        
+      
+      </ul>
+    </div>
+  </div>
+</nav>
+
+      <div class="container">
+        <div class="blog-post">
+          <h3>
+            <strong><a href="../../project/project2/">Project 2: Modeling, Testing, and Predicting</a></strong>
+          </h3>
+        </div>
+ 
+<div class="blog-title">
+          <h4>
+         December 2, 2020 
+            &nbsp;&nbsp;
+            
+          </h4>
+        </div>
+
+        <div class="panel panel-default">
+          <div class="panel-body">
+            <div class="blogpost">
+              
+
+
+<div id="mizzu-cho-mc63696" class="section level1">
+<h1>Mizzu Cho (mc63696)</h1>
+</div>
+<div id="atlantic-hurricanes" class="section level1">
+<h1>Atlantic Hurricanes</h1>
+<p>I will be introducing the datatset about US Atlantic hurricanes. The dataset includes 13 different variables such as atmospheric pressure at landfall, estimated damage in millions of dollars, and deaths, for named hurricanes that made landfall in the US mainland from 1950 through to 2012 and the dataset involves 94 different hurricanes (observations). I'm going to look in whether the mean financial damages caused the hurricane differ between LA, TX, and FL. #MANOVA -</p>
+<pre class="r"><code>library(readr)
+library(glmnet)
+library(dplyr)
+library(mvtnorm)
+library(ggExtra)
+library(tidyverse)
+hurricane &lt;- read_csv(&quot;hurricNamed.csv&quot;)
+hurricane&lt;-hurricane[(hurricane$AffectedStates==&quot;LA&quot; | hurricane$AffectedStates==&quot;TX&quot;|hurricane$AffectedStates==&quot;FL&quot;),]
+hurricane2&lt;-hurricane%&gt;%select(Name,mf,AffectedStates,LF.WindsMPH,LF.PressureMB,BaseDam2014,deaths)
+#bivariate density plot
+ggplot(hurricane2, aes(x = LF.WindsMPH, y = LF.PressureMB,z=BaseDam2014)) +geom_point(alpha = .5) + geom_density_2d(h=2) + coord_fixed() + facet_wrap(~AffectedStates)</code></pre>
+<p><img src="../../project/project2_files/figure-html/unnamed-chunk-1-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>#equal variance
+covmats&lt;-hurricane2%&gt;%group_by(AffectedStates)%&gt;%do(covs=cov(.[4:7]))
+for(i in 1:3){print(as.character(covmats$AffectedStates[i])); print(covmats$covs[[i]])}</code></pre>
+<pre><code>## [1] &quot;FL&quot;
+## LF.WindsMPH LF.PressureMB BaseDam2014 deaths
+## LF.WindsMPH 291.666667 -226.54762 46063.004 9.642857
+## LF.PressureMB -226.547619 211.23810 -61334.220
+-10.285714
+## BaseDam2014 46063.003775 -61334.21962 47698547.868
+5903.746388
+## deaths 9.642857 -10.28571 5903.746 5.171429
+## [1] &quot;LA&quot;
+## LF.WindsMPH LF.PressureMB BaseDam2014 deaths
+## LF.WindsMPH 237.8788 -182.5758 2684.017 127.5758
+## LF.PressureMB -182.5758 254.8106 -13813.973 -172.0379
+## BaseDam2014 2684.0172 -13813.9731 2332865.319 18592.8787
+## deaths 127.5758 -172.0379 18592.879 289.7197
+## [1] &quot;TX&quot;
+## LF.WindsMPH LF.PressureMB BaseDam2014 deaths
+## LF.WindsMPH 410.9890 -385.1648 18787.60 199.1758
+## LF.PressureMB -385.1648 414.6813 -16738.77 -163.7473
+## BaseDam2014 18787.5994 -16738.7733 2008370.22 12974.9098
+## deaths 199.1758 -163.7473 12974.91 169.0330</code></pre>
+<pre class="r"><code>#Shapiro tests
+hurricane2 %&gt;%group_by(AffectedStates) %&gt;%summarise(statistic = shapiro.test(LF.WindsMPH)$statistic, p.value = shapiro.test(LF.WindsMPH)$p.value)</code></pre>
+<pre><code>## # A tibble: 3 x 3
+##   AffectedStates statistic p.value
+##   &lt;chr&gt;              &lt;dbl&gt;   &lt;dbl&gt;
+## 1 FL                 0.905 0.115  
+## 2 LA                 0.866 0.0575 
+## 3 TX                 0.810 0.00664</code></pre>
+<pre class="r"><code>hurricane2 %&gt;%group_by(AffectedStates) %&gt;%summarise(statistic = shapiro.test(LF.PressureMB)$statistic, p.value = shapiro.test(LF.PressureMB)$p.value)</code></pre>
+<pre><code>## # A tibble: 3 x 3
+##   AffectedStates statistic p.value
+##   &lt;chr&gt;              &lt;dbl&gt;   &lt;dbl&gt;
+## 1 FL                 0.927   0.242
+## 2 LA                 0.923   0.315
+## 3 TX                 0.929   0.295</code></pre>
+<pre class="r"><code>hurricane2 %&gt;%group_by(AffectedStates) %&gt;%summarise(statistic = shapiro.test(BaseDam2014)$statistic, p.value = shapiro.test(BaseDam2014)$p.value)</code></pre>
+<pre><code>## # A tibble: 3 x 3
+##   AffectedStates statistic   p.value
+##   &lt;chr&gt;              &lt;dbl&gt;     &lt;dbl&gt;
+## 1 FL                 0.559 0.0000110
+## 2 LA                 0.779 0.00542  
+## 3 TX                 0.749 0.00124</code></pre>
+<pre class="r"><code>hurricane2 %&gt;%group_by(AffectedStates) %&gt;%summarise(statistic = shapiro.test(deaths)$statistic, p.value = shapiro.test(deaths)$p.value)</code></pre>
+<pre><code>## # A tibble: 3 x 3
+##   AffectedStates statistic  p.value
+##   &lt;chr&gt;              &lt;dbl&gt;    &lt;dbl&gt;
+## 1 FL                 0.951 0.543   
+## 2 LA                 0.610 0.000129
+## 3 TX                 0.731 0.000787</code></pre>
+<pre class="r"><code>#manova
+man1&lt;-manova(cbind(LF.WindsMPH,LF.PressureMB,BaseDam2014,deaths)~AffectedStates, data=hurricane2)
+summary(man1)</code></pre>
+<pre><code>##                Df  Pillai approx F num Df den Df Pr(&gt;F)
+## AffectedStates  2 0.28768    1.512      8     72 0.1682
+## Residuals      38</code></pre>
+<p>A one-way MANOVA was conducted to determine the effect of the states (LA,TX,FL) on four different dependent variables (windspeed of the hurricane, atmospheric pressure of the hurricane, property damage, and the number of deaths). Examination of bivariate density plots for each group revealed no stark deparures from multivariate normality. Examination of covariance matrices performing Shapiro test for each group revealed, we reject the null hypothesis that all population variances/covariances are equal across groups because the p-values were &lt;0.05. Assumption is violated. MANOVA is not considered to be an appropriate analysis technique but i continued for the project. MANOVA test result revealed that the significant differences were not found among the three states.(F=1.512, p=0.1682, df=2). Because MANOVA indicated that there was not significant difference, post hoc was not necessary.</p>
+<pre class="r"><code>#rename-organizational purpose
+hurricane2 &lt;- rename(hurricane2, states = 3)
+hurricane2 &lt;- rename(hurricane2, windspeed = 4)
+hurricane2 &lt;- rename(hurricane2, pressure = 5)
+hurricane2 &lt;- rename(hurricane2, damage = 6)
+hurricane2 &lt;- rename(hurricane2, death = 7)</code></pre>
+</div>
+<div id="ranomization-test" class="section level1">
+<h1>Ranomization Test</h1>
+<pre class="r"><code>hurricane2%&gt;%group_by(mf)%&gt;%summarize(means=mean(damage))%&gt;%summarize(`mean_diff`=diff(means))</code></pre>
+<pre><code>## # A tibble: 1 x 1
+##   mean_diff
+##       &lt;dbl&gt;
+## 1    -1100.</code></pre>
+<pre class="r"><code>rand_dist&lt;-vector()
+for(i in 1:5000){
+ new&lt;-data.frame(damage=sample(hurricane2$damage),mf=hurricane2$mf) 
+rand_dist[i]&lt;-mean(new[new$mf==&quot;f&quot;,]$damage)- mean(new[new$mf==&quot;m&quot;,]$damage)} 
+
+mean(rand_dist&gt;1100.367  | rand_dist &lt; -1100.367) </code></pre>
+<pre><code>## [1] 0.563</code></pre>
+<p>Test statistic is that the female hurricanes have caused more financial property damage than the male hurricanes. The null hypothesis is that there's is no difference in financial property damage caused between the female hurricanes and the male hurricanes. After performing a randomization test to see whether there much higher damage caused by the female hurricane than themale hurricane, we found apvalue of 0.55 and we failed to reject H0!there is no difference in damage between female and male hurricane according to the randomization test.</p>
+</div>
+<div id="linear-regression" class="section level1">
+<h1>Linear Regression</h1>
+<p>Controlling wind speed of the hurricane and the atmospheric pressure of the hurricane at a time, the linear regression was conducted to investigate whether either variable and the interaction between the two variable expains the variation in the number of deaths caused by the hurricane.</p>
+<pre class="r"><code>library(tidyverse)
+library(sandwich)
+library(lmtest)
+#Linear regression
+fit&lt;-lm(death ~ windspeed * pressure, data=hurricane2)
+summary(fit)</code></pre>
+<pre><code>##
+## Call:
+## lm(formula = death ~ windspeed * pressure, data =
+hurricane2)
+##
+## Residuals:
+## Min 1Q Median 3Q Max
+## -15.415 -3.978 -0.842 2.062 40.748
+##
+## Coefficients:
+## Estimate Std. Error t value Pr(&gt;|t|)
+## (Intercept) -7.839e+02 5.759e+02 -1.361 0.1817
+## windspeed 1.165e+01 5.469e+00 2.130 0.0399 *
+## pressure 8.221e-01 5.911e-01 1.391 0.1726
+## windspeed:pressure -1.210e-02 5.681e-03 -2.130 0.0399 *
+## ---
+## Signif. codes: 0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1
+&#39; &#39; 1
+##
+## Residual standard error: 10.03 on 37 degrees of freedom
+## Multiple R-squared: 0.355, Adjusted R-squared: 0.3027
+## F-statistic: 6.787 on 3 and 37 DF, p-value: 0.0009248</code></pre>
+<pre class="r"><code>#Graph
+ggplot(hurricane2,aes(windspeed, death,color=pressure))+geom_point()+ geom_smooth(method = &quot;lm&quot;, se = F, fullrange = T)</code></pre>
+<p><img src="../../project/project2_files/figure-html/unnamed-chunk-4-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>#Assumptions(linearityandhomoskedasticity)
+resids&lt;-fit$residuals
+fitvals&lt;-fit$fitted.values
+ggplot()+geom_point(aes(fitvals,resids))+geom_hline(yintercept=0, col=&quot;red&quot;)</code></pre>
+<p><img src="../../project/project2_files/figure-html/unnamed-chunk-4-2.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>bptest(fit)</code></pre>
+<pre><code>## 
+##  studentized Breusch-Pagan test
+## 
+## data:  fit
+## BP = 5.527, df = 3, p-value = 0.137</code></pre>
+<pre class="r"><code>#Assumption(normality)
+ks.test(resids, &quot;pnorm&quot;, sd=sd(resids))</code></pre>
+<pre><code>## 
+##  One-sample Kolmogorov-Smirnov test
+## 
+## data:  resids
+## D = 0.17993, p-value = 0.1406
+## alternative hypothesis: two-sided</code></pre>
+<pre class="r"><code>#Correcting SE
+summary(fit)$coef[,1:2]</code></pre>
+<pre><code>##                         Estimate   Std. Error
+## (Intercept)        -783.93060607 5.759170e+02
+## windspeed            11.64745938 5.469174e+00
+## pressure              0.82210224 5.911186e-01
+## windspeed:pressure   -0.01210029 5.680837e-03</code></pre>
+<pre class="r"><code>coeftest(fit, vcov=vcovHC(fit))[,1:2]</code></pre>
+<pre><code>##                         Estimate   Std. Error
+## (Intercept)        -783.93060607 1.099297e+03
+## windspeed            11.64745938 1.058959e+01
+## pressure              0.82210224 1.125332e+00
+## windspeed:pressure   -0.01210029 1.089461e-02</code></pre>
+<p>The result of the Linear regression indicates that the windspeed of the hurricane explains that the variation in the number of death when the atmospheric pressure is controlled. When the values for windspeed and pressure is zero, the number of deaths is -7.839e+02 which is non realistic since there's no hurricane with zero windspeed and atmospheric pressure. For every unit increase in the windspeed, the number of death goes up by 1.165e+01 with zero pressure and zero winspeed and pressure interaction. With every unit increase in the interaction between windspeed and pressure, the number of deaths goes down by -1.210e-02. The Linear Regression explains interaction of (number of death) = (-7.839e+02) + 1.165e+01(windspeed) + 8.221e-01(pressure) + (pressure*windspeed).</p>
+<p>Neverthe less, the residual plot shows that the linearity and homoskedasticity assumptions might have been failed because the residual plot shows the patterns across the scatterplot.However, the studentized Breusch-Pagan test showed big p-value which indicates that we failed to reject the null hypothesis that variances are all equal. One-sample Kolmogorov-Smirnov test also showed that the normality assumption has been failed to reject because it showed a big p value.Thus we passed the normality test.</p>
+<p>If we were to compare the compare the number of deaths controlling the windspeed and the atmospheric pressure after the Standard error is corrected even though the homospkedasity assumption test has not been failed, the SE becomes bigger than when the SE are not corrected. Bigger SE makes it more difficult to reject the null hypothesis.</p>
+</div>
+<div id="bootstrapping" class="section level1">
+<h1>BootStrapping</h1>
+<pre class="r"><code>#SE
+boot_dat&lt;- sample_frac(hurricane2, replace=T)
+samp_distn&lt;-replicate(5000, {
+boot_dat &lt;- sample_frac(hurricane2, replace=T) 
+fit &lt;- lm(death~windspeed+pressure, data=boot_dat) 
+coef(fit) 
+})
+samp_distn %&gt;% t %&gt;% as.data.frame %&gt;% summarize_all(sd)</code></pre>
+<pre><code>##   (Intercept) windspeed pressure
+## 1    230.2121 0.1922022 0.219856</code></pre>
+<pre class="r"><code>#Bootstrap Confidence Intervals
+samp_distn %&gt;% t %&gt;% as.data.frame %&gt;% pivot_longer(1:3) %&gt;% group_by(name) %&gt;%
+summarize(lower=quantile(value,.025), upper=quantile(value,.975))</code></pre>
+<pre><code>## # A tibble: 3 x 3
+##   name         lower    upper
+##   &lt;chr&gt;        &lt;dbl&gt;    &lt;dbl&gt;
+## 1 (Intercept) 15.4   908.    
+## 2 pressure    -0.884  -0.0329
+## 3 windspeed   -0.446   0.330</code></pre>
+<p>The Bootstrapped SEs are calculated to be smaller than the robust SEs. When looking at the confidence interval, the CI interval for varible windspeed contains the a '0' for a plausible value. Thus, it can't reject the null hypothesis.</p>
+</div>
+<div id="linear-regression-for-binary-variable" class="section level1">
+<h1>Linear Regression for binary variable</h1>
+<pre class="r"><code>data&lt;-hurricane2%&gt;%mutate(y=ifelse(mf==&quot;f&quot;,1,0))
+fit2&lt;-lm(y~windspeed+pressure,data=data)
+summary(fit2)</code></pre>
+<pre><code>##
+## Call:
+## lm(formula = y ~ windspeed + pressure, data = data)
+##
+## Residuals:
+## Min 1Q Median 3Q Max
+## -0.9645 -0.4082 0.2130 0.2929 0.5094
+##
+## Coefficients:
+## Estimate Std. Error t value Pr(&gt;|t|)
+## (Intercept) -13.006792 8.835836 -1.472 0.1492
+## windspeed 0.013926 0.007971 1.747 0.0887 .
+## pressure 0.012734 0.008388 1.518 0.1372
+## ---
+## Signif. codes: 0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1
+&#39; &#39; 1
+##
+## Residual standard error: 0.4428 on 38 degrees of freedom
+## Multiple R-squared: 0.07435, Adjusted R-squared: 0.02563
+## F-statistic: 1.526 on 2 and 38 DF, p-value: 0.2304</code></pre>
+<pre class="r"><code>fit2&lt;-glm(y~windspeed+pressure,data=data, family=&quot;binomial&quot;)
+coef(fit2)</code></pre>
+<pre><code>##  (Intercept)    windspeed     pressure 
+## -71.13972572   0.07376932   0.06688997</code></pre>
+<pre class="r"><code>exp(coef(fit2))</code></pre>
+<pre><code>##  (Intercept)    windspeed     pressure 
+## 1.271773e-31 1.076558e+00 1.069178e+00</code></pre>
+<pre class="r"><code>#confusion matrix
+logistic&lt;-function(x){exp(x)/(1+exp(x))}
+data$prob &lt;- predict(fit2,type=&quot;response&quot;)
+data$predicted &lt;- ifelse(data$prob&gt;.5,&quot;female&quot;,&quot;male&quot;)
+table(predict=as.numeric(data$prob&gt;.5),truth=data$y)%&gt;%addmargins</code></pre>
+<pre><code>##        truth
+## predict  0  1 Sum
+##     0    1  2   3
+##     1   10 28  38
+##     Sum 11 30  41</code></pre>
+<pre class="r"><code>#sensitivity (TPR)
+mean(data[data$y==1,]$prob&gt;.5)</code></pre>
+<pre><code>## [1] 0.9333333</code></pre>
+<pre class="r"><code>#specificity (TNR)
+mean(data[data$y==0,]$prob&lt;.5)</code></pre>
+<pre><code>## [1] 0.09090909</code></pre>
+<pre class="r"><code>#precision
+28/38</code></pre>
+<pre><code>## [1] 0.7368421</code></pre>
+<pre class="r"><code>data$logit&lt;-predict(fit2,type=&quot;link&quot;)
+
+## Density plot of log-odds for each outcome:
+
+data%&gt;%ggplot()+geom_density(aes(logit,color=y,fill=y), alpha=.4)+
+theme(legend.position=c(.85,.85))+geom_vline(xintercept=0)+xlab(&quot;logit (log-odds)&quot;)+
+geom_rug(aes(logit,color=y))</code></pre>
+<p><img src="../../project/project2_files/figure-html/unnamed-chunk-6-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>#ROC curves
+library(plotROC) 
+ROCplot&lt;-ggplot(data)+geom_roc(aes(d=y,m=prob), n.cuts=0) 
+ROCplot</code></pre>
+<p><img src="../../project/project2_files/figure-html/unnamed-chunk-6-2.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>calc_auc(ROCplot)</code></pre>
+<pre><code>##   PANEL group       AUC
+## 1     1    -1 0.6878788</code></pre>
+<p>After performing a linear regression to investigate whether the windspeed of the hurricane and the atmospheric pressure explains that the variation in gender of the hurricane when the other variable is controlled, the big p values indicated that none of the values has significant influence on the gender of the hurricane. With zero value of windspeed and pressure, the likeliness of hurricane to be female is 71.14. Controlling the pressure (zero pressure), for every one mile per hour increase decreases the predicted probability for hurricane to be female by 0.07376932. With controlled windspeed of 0, every one increase in milibar of the pressure decreases the predicted probability for hurricane to be a female by 0.06688997. Sensitivity is 0.93. TNR is 0.09. Precision is 0.737. AUC was calculated to be 0.69 which indicates that the curve is not so good at guessing the data.</p>
+</div>
+<div id="all-variables" class="section level1">
+<h1>All variables</h1>
+<pre class="r"><code>data2&lt;-hurricane2%&gt;%mutate(y=ifelse(mf==&quot;f&quot;,1,0))
+fit3&lt;-lm(y~windspeed+pressure+damage+death+states,data=data2)
+summary(fit3)</code></pre>
+<pre><code>##
+## Call:
+## lm(formula = y ~ windspeed + pressure + damage + death +
+states,
+## data = data2)
+##
+## Residuals:
+## Min 1Q Median 3Q Max
+## -0.8827 -0.3149 0.1899 0.2635 0.6180
+##
+## Coefficients:
+## Estimate Std. Error t value Pr(&gt;|t|)
+## (Intercept) -1.526e+01 1.038e+01 -1.470 0.151
+## windspeed 1.362e-02 8.882e-03 1.533 0.134
+## pressure 1.504e-02 9.868e-03 1.524 0.137
+## damage 1.737e-05 1.913e-05 0.908 0.370
+## death 4.954e-04 7.342e-03 0.067 0.947
+## statesLA -9.013e-02 2.001e-01 -0.451 0.655
+## statesTX 9.468e-02 1.880e-01 0.504 0.618
+##
+## Residual standard error: 0.4563 on 34 degrees of freedom
+## Multiple R-squared: 0.1206, Adjusted R-squared: -0.03461
+## F-statistic: 0.777 on 6 and 34 DF, p-value: 0.5936</code></pre>
+<pre class="r"><code>fit3&lt;-glm(y~windspeed+pressure+damage+death+states,data=data2, family=&quot;binomial&quot;)
+coef(fit3)</code></pre>
+<pre><code>## (Intercept) windspeed pressure damage death statesLA
+statesTX
+## -96.477466714 0.080429146 0.091879528 0.000245846
+-0.004169439 -0.307684663 0.682698965</code></pre>
+<pre class="r"><code>exp(coef(fit3))</code></pre>
+<pre><code>## (Intercept) windspeed pressure damage death statesLA
+statesTX
+## 1.259994e-42 1.083752e+00 1.096233e+00 1.000246e+00
+9.958392e-01 7.351471e-01 1.979212e+00</code></pre>
+<pre class="r"><code> #confusion matrix
+logistic&lt;-function(x){exp(x)/(1+exp(x))}
+data2$prob &lt;- predict(fit3,type=&quot;response&quot;)
+data2$predicted &lt;- ifelse(data2$prob&gt;.5,&quot;female&quot;,&quot;male&quot;)
+table(predict=as.numeric(data2$prob&gt;.5),truth=data2$y)%&gt;%addmargins</code></pre>
+<pre><code>##        truth
+## predict  0  1 Sum
+##     0    1  1   2
+##     1   10 29  39
+##     Sum 11 30  41</code></pre>
+<pre class="r"><code>#sensitivity (TPR)
+mean(data2[data2$y==1,]$prob&gt;.5)</code></pre>
+<pre><code>## [1] 0.9666667</code></pre>
+<pre class="r"><code>#specificity (TNR)
+mean(data2[data2$y==0,]$prob&lt;.5)</code></pre>
+<pre><code>## [1] 0.09090909</code></pre>
+<pre class="r"><code>#precision
+30/41</code></pre>
+<pre><code>## [1] 0.7317073</code></pre>
+<pre class="r"><code>data2$logit&lt;-predict(fit3,type=&quot;link&quot;)
+# Density plot of log-odds for each outcome:
+data2%&gt;%ggplot()+geom_density(aes(logit,color=y,fill=y), alpha=.4)+
+theme(legend.position=c(.85,.85))+geom_vline(xintercept=0)+xlab(&quot;logit (log-odds)&quot;)+
+geom_rug(aes(logit,color=y))</code></pre>
+<p><img src="../../project/project2_files/figure-html/unnamed-chunk-7-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>#ROC curves
+library(plotROC) 
+ROCplot&lt;-ggplot(data2)+geom_roc(aes(d=y,m=prob), n.cuts=0) 
+ROCplot</code></pre>
+<p><img src="../../project/project2_files/figure-html/unnamed-chunk-7-2.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>calc_auc(ROCplot)</code></pre>
+<pre><code>##   PANEL group       AUC
+## 1     1    -1 0.7454545</code></pre>
+<pre class="r"><code>#LASSO
+library(glmnet)
+
+library(nnet) 
+set.seed(1234)
+k=5
+data &lt;- data2 %&gt;% sample_frac
+folds &lt;- ntile(1:nrow(data),n=10) 
+
+class_diag &lt;- function(probs,truth){
+  #CONFUSION MATRIX: CALCULATE ACCURACY, TPR, TNR, PPV
+  tab&lt;-table(factor(probs&gt;.5,levels=c(&quot;FALSE&quot;,&quot;TRUE&quot;)),truth)
+  acc=sum(diag(tab))/sum(tab)
+  sens=tab[2,2]/colSums(tab)[2]
+  spec=tab[1,1]/colSums(tab)[1]
+  ppv=tab[2,2]/rowSums(tab)[2]
+  f1=2*(sens*ppv)/(sens+ppv)
+
+  if(is.numeric(truth)==FALSE &amp; is.logical(truth)==FALSE) truth&lt;-as.numeric(truth)-1
+  
+  #CALCULATE EXACT AUC
+  ord&lt;-order(probs, decreasing=TRUE)
+  probs &lt;- probs[ord]; truth &lt;- truth[ord]
+  
+  TPR=cumsum(truth)/max(1,sum(truth)) 
+  FPR=cumsum(!truth)/max(1,sum(!truth))
+  
+  dup&lt;-c(probs[-1]&gt;=probs[-length(probs)], FALSE)
+  TPR&lt;-c(0,TPR[!dup],1); FPR&lt;-c(0,FPR[!dup],1)
+  n &lt;- length(TPR)
+  auc&lt;- sum( ((TPR[-1]+TPR[-n])/2) * (FPR[-1]-FPR[-n]) )
+
+  data.frame(acc,sens,spec,ppv,f1,auc)
+}</code></pre>
+<p>None of the variables were found to show significantly influecial in determining probabilty of being a female or male. The sensitivity was found to be 0.97. Thes Specificity was found to be 0.09. The precision was found to be 0.73. The AUC was calculated to be 0.75 which indicates that the the curve is not so terrible at guessing the data but not very good at the same time. ...</p>
+</div>
+
+            
+        <hr>         <div class="related-posts">
+                <h5>Related Posts</h5>
+                
+              </div> 
+            </div>
+          </div>
+
+   <hr>  <div class="disqus">
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+
+    (function() {
+      
+      
+      if (window.location.hostname == "localhost")
+        return;
+
+      var disqus_shortname = '';
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</div> 
+        </div>
+      </div>
+    </div>
+
+    
+    <footer>
+  <div id="footer">
+    <div class="container">
+      <p class="text-muted">&copy; All rights reserved. Powered by <a href="https://gohugo.io/">Hugo</a> and
+      <a href="http://www.github.com/nurlansu/hugo-sustain/">sustain</a> with ♥</p>
+    </div>
+  </div>
+</footer>
+<div class="footer"></div>
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+<script src="../../js/docs.min.js"></script>
+<script src="../../js/main.js"></script>
+
+<script src="../../js/ie10-viewport-bug-workaround.js"></script>
+
+
+    
+  </body>
+</html>

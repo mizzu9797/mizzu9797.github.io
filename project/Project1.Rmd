@@ -1,0 +1,144 @@
+---
+title: 'Project 1: Exploratory Data Analysis'
+author: "SDS348"
+date: ''
+output:
+  html_document:
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+  pdf_document:
+    toc: no
+---
+##Mizzu Cho (mc63696)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, fig.align = "center", warning = F, message = F,
+tidy=TRUE, tidy.opts=list(width.cutoff=60), R.options=list(max.print=100))
+```
+##Introduction
+```{r}
+#For this project, I want to study the relationship between the humidity and the number of covid cases in Korea. Therefore, I have chosen the dataset containing the number of confirmed covid cases everyday from January 2020 to June2020 in each province of Korea and the dataset containing the weather record in each province of Korea. I'm going to calculate the average humidity of each province every month between January and June as one variable. For the other variable, first, I'm going to calculate the average of confirmed covid cases each month and divide the covid case average confirmed number by the population size to calculate the density of the covid confirmed cases. However, due to lack of source, I had to use the population census of Korea from 2015 instead of 2020. Thus the result conforms the assumption that Korea have similar population ratio in present days as of 2015. 
+
+#The result might have involved the confounding variable because the spread of cases don't solely depend on the humidity but also the size of the population in each province. Also the population in Korea has been expanding dramatically ever since 2015 so some of the covid to population ratio is larger than 1 because the covid case number is bigger than the population size in 2015. 
+
+#I will be left-joining the 'Weather'dataset to 'TimeProvince'dataset so that the dates in Weather dataset that 'TimeProvince' dataset doesn't have can be removed. 'Weather' dataset has 26271 observations(Weather) of 10 different variables/columns(Korean provinces), and 'TimeProvince' dataset has 2771 observations of 6 different variables/columns(Korean provinces).
+
+library(readr)
+TimeProvince <- read_csv("TimeProvince.csv")
+head(TimeProvince)
+library(readr)
+Weather <- read_csv("Weather.csv")
+head(Weather)
+```
+
+```{r}
+#Filter out the needed variables from the dataset
+library(tidyverse)
+TimeProvince %>% select(date,province,confirmed)%>%filter(!is.na(confirmed))
+Data1<-TimeProvince%>%select(date,province,confirmed)%>%filter(!is.na(confirmed))
+Weather%>%select(province,date,avg_relative_humidity)
+Data2<-Weather%>%select(province,date,avg_relative_humidity)
+```
+##Joining
+```{r}
+#Joining two dataset by province of Korea
+Data1%>%left_join(Data2)
+data<-Data1%>%left_join(Data2)
+```
+
+```{r}
+#check whether there is NAs and getting rid of NAs
+data %>% summarize_all(function(x) mean(!is.na(x)))
+data%>%filter(!is.na(avg_relative_humidity))
+data<-data%>%filter(!is.na(avg_relative_humidity))
+
+#seaparte year, month, and day into different columns
+data%>%separate(date,into=c("year","month","day"))%>%filter(!is.na(avg_relative_humidity))
+data<-data%>%separate(date,into=c("year","month","day"))%>%filter(!is.na(avg_relative_humidity))
+```
+
+```{r}
+#importing the dataset containig Korean population census 2015
+library(readr)
+Population_density_by_Population_Census_20201020052447 <- read_csv("Population_density_by_Population_Census_20201020052447.csv")
+
+#upload popuplation census of Korea  and select the data from the most recent year
+Population_density_by_Population_Census_20201020052447 %>% select(1,4)
+population_15<-Population_density_by_Population_Census_20201020052447 %>% select(1,4)
+
+#rename the columns to make the joining easier and distinguish
+population_15<-rename(population_15,province=1)
+population_15<-rename(population_15,pop15=2)
+
+#joining
+data%>%left_join(population_15)
+data<-data%>%left_join(population_15)
+```
+
+```{r}
+#drop unecessary columns
+data%>% select(month,province,confirmed,avg_relative_humidity,pop15)
+data<-data%>% select(month,province,confirmed,avg_relative_humidity,pop15)
+
+#calculate the average number of confirmed cases and the average of the humidity each month.
+data%>%group_by(month,province)%>%summarize(province,covid_mean=mean(confirmed),humidity_mean=mean(avg_relative_humidity),pop15)%>%distinct()%>%arrange(province)
+data<-data%>%group_by(month,province)%>%summarize(province,covid_mean=mean(confirmed),humidity_mean=mean(avg_relative_humidity),pop15)%>%distinct()%>%arrange(province)
+```
+
+```{r}
+#caculate the ratio for number of covid cases to population. covid patient density in each province. 
+data%>%mutate(covid_density=covid_mean/pop15)
+data<-data%>%mutate(covid_density=covid_mean/pop15)
+```
+
+```{r}
+#get ride of chungcheongbukdo because it doesnt have a data for june
+data %>% filter(!province=="Chungcheongbuk-do")%>%select(month,province,humidity_mean,covid_density)%>%filter(month=="01"|month=="06")
+data<-data %>% filter(!province=="Chungcheongbuk-do")%>%select(month,province,humidity_mean,covid_density)%>%filter(month=="01"|month=="06")
+
+```
+##pivoting
+```{r}
+#pivoting wider/tidying
+data%>%pivot_wider(names_from="month",values_from=c(humidity_mean,covid_density))
+data<-data%>%pivot_wider(names_from="month",values_from=c(humidity_mean,covid_density))
+```
+
+```{r}
+#rename for organization purpose
+data<-rename(data,coviddensity1=4)
+data<-rename(data,coviddensity6=5)
+data<-rename(data,humidity1=2)
+data<-rename(data,humidity6=3)
+```
+
+```{r}
+data%>%mutate(humidity=(humidity1+humidity6)/2,coviddensitygrowth=coviddensity6-coviddensity1)
+data<-data%>%mutate(humidity=(humidity1+humidity6)/2,coviddensitygrowth=coviddensity6-coviddensity1)
+
+data%>%left_join(population_15)
+data<-data%>%left_join(population_15)
+
+data%>%select(province,pop15,humidity,coviddensitygrowth)
+data<-data%>%select(province,pop15,humidity,coviddensitygrowth)
+```
+
+##visualizations
+```{r}
+#scatterplot
+data%>%ggplot(aes(humidity,coviddensitygrowth))+geom_point()+geom_smooth(method = NULL )+geom_point(aes(color=province))
+```
+
+```{r}
+#bargraph
+data%>%ggplot(aes(x=province, y=coviddensitygrowth)) + geom_bar(stat='identity', width=.5) 
+```
+
+
+
+
+
+
+
+

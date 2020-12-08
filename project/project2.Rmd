@@ -1,0 +1,252 @@
+---
+title: 'Project 2: Modeling, Testing, and Predicting'
+author: "SDS348"
+date: '2020-12-02'
+output:
+  html_document:
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(zoo)
+hook_output = knit_hooks$get('output')
+knit_hooks$set(output = function(x, options) {
+  # this hook is used only when the linewidth option is not NULL
+  if (!is.null(n <- options$linewidth)) {
+    x = knitr:::split_lines(x)
+    # any lines wider than n should be wrapped
+    if (any(nchar(x) > n)) x = strwrap(x, width = n)
+    x = paste(x, collapse = '\n')
+  }
+  hook_output(x, options)
+})
+
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,fig.align="center",warning=FALSE,message=FALSE,fig.width=8, fig.height=5, linewidth=60)
+options(tibble.width = 100,width = 100)
+library(tidyverse)
+```
+# Mizzu Cho (mc63696)
+# Atlantic Hurricanes
+I will be introducing the datatset about US Atlantic hurricanes. The dataset includes 13 different variables such as atmospheric pressure at landfall, estimated damage in millions of dollars, and deaths, for named hurricanes that made landfall in the US mainland from 1950 through to 2012 and the dataset involves 94 different hurricanes (observations). I'm going to look in whether the mean financial damages caused the hurricane differ between LA, TX, and FL. 
+#MANOVA
+-
+```{r}
+library(readr)
+library(glmnet)
+library(dplyr)
+library(mvtnorm)
+library(ggExtra)
+library(tidyverse)
+hurricane <- read_csv("hurricNamed.csv")
+hurricane<-hurricane[(hurricane$AffectedStates=="LA" | hurricane$AffectedStates=="TX"|hurricane$AffectedStates=="FL"),]
+hurricane2<-hurricane%>%select(Name,mf,AffectedStates,LF.WindsMPH,LF.PressureMB,BaseDam2014,deaths)
+#bivariate density plot
+ggplot(hurricane2, aes(x = LF.WindsMPH, y = LF.PressureMB,z=BaseDam2014)) +geom_point(alpha = .5) + geom_density_2d(h=2) + coord_fixed() + facet_wrap(~AffectedStates)
+#equal variance
+covmats<-hurricane2%>%group_by(AffectedStates)%>%do(covs=cov(.[4:7]))
+for(i in 1:3){print(as.character(covmats$AffectedStates[i])); print(covmats$covs[[i]])}
+#Shapiro tests
+hurricane2 %>%group_by(AffectedStates) %>%summarise(statistic = shapiro.test(LF.WindsMPH)$statistic, p.value = shapiro.test(LF.WindsMPH)$p.value)
+
+hurricane2 %>%group_by(AffectedStates) %>%summarise(statistic = shapiro.test(LF.PressureMB)$statistic, p.value = shapiro.test(LF.PressureMB)$p.value)
+
+hurricane2 %>%group_by(AffectedStates) %>%summarise(statistic = shapiro.test(BaseDam2014)$statistic, p.value = shapiro.test(BaseDam2014)$p.value)
+
+hurricane2 %>%group_by(AffectedStates) %>%summarise(statistic = shapiro.test(deaths)$statistic, p.value = shapiro.test(deaths)$p.value)
+
+#manova
+man1<-manova(cbind(LF.WindsMPH,LF.PressureMB,BaseDam2014,deaths)~AffectedStates, data=hurricane2)
+summary(man1)
+```
+
+A one-way MANOVA was conducted to determine the effect of the states (LA,TX,FL) on four different dependent variables (windspeed of the hurricane, atmospheric pressure of the hurricane, property damage, and the number of deaths). Examination of bivariate density plots for each group revealed no stark deparures from multivariate normality. Examination of covariance matrices performing Shapiro test for each group revealed, we reject the null hypothesis that all population variances/covariances are equal across groups because the p-values were <0.05. Assumption is violated. MANOVA is not considered to be an appropriate analysis technique but i continued for the project. MANOVA test result revealed that the significant differences were not found among the three states.(F=1.512, p=0.1682, df=2). Because MANOVA indicated that there was not significant difference, post hoc was not necessary.
+
+```{r}
+#rename-organizational purpose
+hurricane2 <- rename(hurricane2, states = 3)
+hurricane2 <- rename(hurricane2, windspeed = 4)
+hurricane2 <- rename(hurricane2, pressure = 5)
+hurricane2 <- rename(hurricane2, damage = 6)
+hurricane2 <- rename(hurricane2, death = 7)
+```
+#Ranomization Test
+
+```{r}
+hurricane2%>%group_by(mf)%>%summarize(means=mean(damage))%>%summarize(`mean_diff`=diff(means))
+
+rand_dist<-vector()
+for(i in 1:5000){
+ new<-data.frame(damage=sample(hurricane2$damage),mf=hurricane2$mf) 
+rand_dist[i]<-mean(new[new$mf=="f",]$damage)- mean(new[new$mf=="m",]$damage)} 
+
+mean(rand_dist>1100.367	 | rand_dist < -1100.367) 
+```
+Test statistic is that the female hurricanes have caused more financial property damage than the male hurricanes. The null hypothesis is that there's is no difference in financial property damage caused between the female hurricanes and the male hurricanes. After performing a randomization test to see whether there much higher damage caused by the female hurricane than themale hurricane, we found apvalue of 0.55 and we failed to reject H0!there is no difference in damage between female and male hurricane according to the randomization test. 
+
+#Linear Regression
+Controlling wind speed of the hurricane and the atmospheric pressure of the hurricane at a time, the linear regression was conducted to investigate whether either variable and the interaction between the two variable expains the variation in the number of deaths caused by the hurricane. 
+```{r}
+library(tidyverse)
+library(sandwich)
+library(lmtest)
+#Linear regression
+fit<-lm(death ~ windspeed * pressure, data=hurricane2)
+summary(fit)
+
+#Graph
+ggplot(hurricane2,aes(windspeed, death,color=pressure))+geom_point()+ geom_smooth(method = "lm", se = F, fullrange = T)
+
+#Assumptions(linearityandhomoskedasticity)
+resids<-fit$residuals
+fitvals<-fit$fitted.values
+ggplot()+geom_point(aes(fitvals,resids))+geom_hline(yintercept=0, col="red")
+bptest(fit)
+
+#Assumption(normality)
+ks.test(resids, "pnorm", sd=sd(resids))
+
+#Correcting SE
+summary(fit)$coef[,1:2]
+coeftest(fit, vcov=vcovHC(fit))[,1:2]
+```
+The result of the Linear regression indicates that the windspeed of the hurricane explains that the variation in the number of death when the atmospheric pressure is controlled. When the values for windspeed and pressure is zero, the number of deaths is -7.839e+02 which is non realistic since there's no hurricane with zero windspeed and atmospheric pressure. For every unit increase in the windspeed, the number of death goes up by 1.165e+01 with zero pressure and zero winspeed and pressure interaction. With every unit increase in the interaction between windspeed and pressure, the number of deaths goes down by -1.210e-02. The Linear Regression explains interaction of (number of death) = (-7.839e+02) + 1.165e+01(windspeed) + 8.221e-01(pressure) + (pressure*windspeed).
+
+Neverthe less, the residual plot shows that the linearity and homoskedasticity assumptions might have been failed because the residual plot shows the patterns across the scatterplot.However, the studentized Breusch-Pagan test showed big p-value which indicates that we failed to reject the null hypothesis that variances are all equal. One-sample Kolmogorov-Smirnov test also showed that the normality assumption has been failed to reject because it showed a big p value.Thus we passed the normality test. 
+
+If we were to compare the compare the number of deaths controlling the windspeed and the atmospheric pressure after the Standard error is corrected even though the homospkedasity assumption test has not been failed, the SE becomes bigger than when the SE are not corrected. Bigger SE makes it more difficult to reject the null hypothesis.
+
+#BootStrapping
+
+```{r}
+#SE
+boot_dat<- sample_frac(hurricane2, replace=T)
+samp_distn<-replicate(5000, {
+boot_dat <- sample_frac(hurricane2, replace=T) 
+fit <- lm(death~windspeed+pressure, data=boot_dat) 
+coef(fit) 
+})
+samp_distn %>% t %>% as.data.frame %>% summarize_all(sd)
+
+#Bootstrap Confidence Intervals
+samp_distn %>% t %>% as.data.frame %>% pivot_longer(1:3) %>% group_by(name) %>%
+summarize(lower=quantile(value,.025), upper=quantile(value,.975))
+```
+
+The Bootstrapped SEs are calculated to be smaller than the robust SEs. When looking at the confidence interval, the CI interval for varible windspeed contains the a '0' for a plausible value. Thus, it can't reject the null hypothesis.
+
+#Linear Regression for binary variable
+```{r}
+data<-hurricane2%>%mutate(y=ifelse(mf=="f",1,0))
+fit2<-lm(y~windspeed+pressure,data=data)
+summary(fit2)
+fit2<-glm(y~windspeed+pressure,data=data, family="binomial")
+coef(fit2)
+exp(coef(fit2))
+
+#confusion matrix
+logistic<-function(x){exp(x)/(1+exp(x))}
+data$prob <- predict(fit2,type="response")
+data$predicted <- ifelse(data$prob>.5,"female","male")
+table(predict=as.numeric(data$prob>.5),truth=data$y)%>%addmargins
+
+#sensitivity (TPR)
+mean(data[data$y==1,]$prob>.5)
+#specificity (TNR)
+mean(data[data$y==0,]$prob<.5)
+#precision
+28/38
+
+data$logit<-predict(fit2,type="link")
+
+## Density plot of log-odds for each outcome:
+
+data%>%ggplot()+geom_density(aes(logit,color=y,fill=y), alpha=.4)+
+theme(legend.position=c(.85,.85))+geom_vline(xintercept=0)+xlab("logit (log-odds)")+
+geom_rug(aes(logit,color=y))
+
+#ROC curves
+library(plotROC) 
+ROCplot<-ggplot(data)+geom_roc(aes(d=y,m=prob), n.cuts=0) 
+ROCplot
+calc_auc(ROCplot)
+```
+After performing a linear regression to investigate whether the windspeed of the hurricane and the atmospheric pressure explains that the variation in gender of the hurricane when the other variable is controlled, the big p values indicated that none of the values has significant influence on the gender of the hurricane. With zero value of windspeed and pressure, the likeliness of hurricane to be female is 71.14. Controlling the pressure (zero pressure), for every one mile per hour increase decreases the predicted probability for hurricane to be female by 0.07376932. With controlled windspeed of 0, every one increase in milibar of the pressure decreases the predicted probability for hurricane to be a female by 0.06688997. 
+Sensitivity is 0.93. TNR is 0.09. Precision is 0.737. AUC was calculated to be 0.69 which indicates that the curve is not so good at guessing the data. 
+
+#All variables
+```{r}
+data2<-hurricane2%>%mutate(y=ifelse(mf=="f",1,0))
+fit3<-lm(y~windspeed+pressure+damage+death+states,data=data2)
+summary(fit3)
+fit3<-glm(y~windspeed+pressure+damage+death+states,data=data2, family="binomial")
+coef(fit3)
+exp(coef(fit3))
+ #confusion matrix
+logistic<-function(x){exp(x)/(1+exp(x))}
+data2$prob <- predict(fit3,type="response")
+data2$predicted <- ifelse(data2$prob>.5,"female","male")
+table(predict=as.numeric(data2$prob>.5),truth=data2$y)%>%addmargins
+#sensitivity (TPR)
+mean(data2[data2$y==1,]$prob>.5)
+#specificity (TNR)
+mean(data2[data2$y==0,]$prob<.5)
+#precision
+30/41
+data2$logit<-predict(fit3,type="link")
+# Density plot of log-odds for each outcome:
+data2%>%ggplot()+geom_density(aes(logit,color=y,fill=y), alpha=.4)+
+theme(legend.position=c(.85,.85))+geom_vline(xintercept=0)+xlab("logit (log-odds)")+
+geom_rug(aes(logit,color=y))
+#ROC curves
+library(plotROC) 
+ROCplot<-ggplot(data2)+geom_roc(aes(d=y,m=prob), n.cuts=0) 
+ROCplot
+calc_auc(ROCplot)
+
+#LASSO
+library(glmnet)
+
+library(nnet) 
+set.seed(1234)
+k=5
+data <- data2 %>% sample_frac
+folds <- ntile(1:nrow(data),n=10) 
+
+class_diag <- function(probs,truth){
+  #CONFUSION MATRIX: CALCULATE ACCURACY, TPR, TNR, PPV
+  tab<-table(factor(probs>.5,levels=c("FALSE","TRUE")),truth)
+  acc=sum(diag(tab))/sum(tab)
+  sens=tab[2,2]/colSums(tab)[2]
+  spec=tab[1,1]/colSums(tab)[1]
+  ppv=tab[2,2]/rowSums(tab)[2]
+  f1=2*(sens*ppv)/(sens+ppv)
+
+  if(is.numeric(truth)==FALSE & is.logical(truth)==FALSE) truth<-as.numeric(truth)-1
+  
+  #CALCULATE EXACT AUC
+  ord<-order(probs, decreasing=TRUE)
+  probs <- probs[ord]; truth <- truth[ord]
+  
+  TPR=cumsum(truth)/max(1,sum(truth)) 
+  FPR=cumsum(!truth)/max(1,sum(!truth))
+  
+  dup<-c(probs[-1]>=probs[-length(probs)], FALSE)
+  TPR<-c(0,TPR[!dup],1); FPR<-c(0,FPR[!dup],1)
+  n <- length(TPR)
+  auc<- sum( ((TPR[-1]+TPR[-n])/2) * (FPR[-1]-FPR[-n]) )
+
+  data.frame(acc,sens,spec,ppv,f1,auc)
+}
+
+```
+None of the variables were found to show significantly influecial in determining probabilty of being a female or male. The sensitivity was found to be 0.97. Thes Specificity was found to be 0.09. The precision was found to be 0.73. The AUC was calculated to be 0.75 which indicates that the the curve is not so terrible at guessing the data but not very good at the same time. 
+...
+
+
+
+
+
