@@ -6,6 +6,57 @@ hiderelated: true
 hidediscus: true
 ---
 
-<center>
-<iframe src="/resume.pdf" width="100%" height="800" border="0"></iframe>
-</center>
+
+
+#Objective
+to work as an UX/UI designer or product designer
+
+#Education
+UT AUSTIN
+Bachelor of Science and Arts in Biology - graduated Fall 2020
+
+#Experience
+##Family Meidicine Clinic Receptionist 
+(May 2018 - May 2019)
+
+EVERGREEN FAMILY MEDICINE
+
+-Maintained Medical Record filing system 
+-Filed daily billing statements and patients’ ledgers
+-Sending patient’s bloodwork to labs
+-Greeted, directed, and assisted patients and pharmaceutical workers
+-Communicated with medical staffs and patients in person and on the phone regarding billing and medical quesitons
+-Communicated with insurance companies regarding patient’s medical records and referrals
+
+##Social Media Manager 
+(May 2020)
+
+CHOSUN BBQ RESTAURANT
+
+-Photographed Food to create content on social media
+-Built social media for Chosun Galbi
+-Adjusted to a trendy logo
+-Maintained Social Media and constant blog posts
+
+##Historian Officer
+(Fall2019-Spring2020)
+
+GLOBAL MEDICAL MISSION ALLIANCE ORGANIZATION
+
+-photographed at every event 
+-record every meeting 
+-manage the flyers and any other visual content of the organization
+
+##Portrait Photographer
+(May 2018-present)
+
+FREELANCE
+
+-build in person interactions with the client throughout the photoshoot
+-stay connected with the clients pre and post photoshoots
+-lightroom color grading
+-DSLR photography 
+
+
+
+
